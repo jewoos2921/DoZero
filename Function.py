@@ -357,3 +357,8 @@ def my_sin(x, threshold=0.0001):
         if abs(t.data) < threshold:
             break
     return y
+
+
+def rosenbrock(x0, x1):
+    y = 100 * (x1 - x0 ** 2) ** 2 + (1 - x0) ** 2
+    return y
