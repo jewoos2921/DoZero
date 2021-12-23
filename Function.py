@@ -372,3 +372,9 @@ def f(x):
 
 def gx2(x):
     return 12 * x ** 2 - 4
+
+# 평균 제곱 오차
+def mean_squared_error(x0, x1):
+    diff = x0 - x1
+    return F.sum(diff ** 2) / len(diff)
+
