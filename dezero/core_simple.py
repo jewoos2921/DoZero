@@ -17,9 +17,11 @@ class Variable:
             if not isinstance(data, np.ndarray):
                 raise TypeError("{}은 (는) 지원하지 않습니다. ".format(type(data)))
 
+        # data, grad 는 순전파 역전파 계산시에 사용, ndarray로 저장
         self.data = data
-        self.name = name  # 변수 이름 지정
         self.grad = None  # 기울기
+
+        self.name = name  # 변수 이름 지정
         self.creator = None
         self.generation = 0  # 세대 수를 기록하는 변수
 
@@ -44,6 +46,7 @@ class Variable:
 
         while funcs:
             f = funcs.pop()
+            # 역전파 계산 (메인 처리)
             gys = [output().grad for output in f.outputs]  # 1. 출력 변수인 outputs에 담겨있는 미분값들을 리스트에 담는다.
             gxs = f.backward(*gys)  # 2. f 의 역전파를 호출한다.
             if not isinstance(gxs, tuple):  # 3. 튜플이 아니라면 튜플로 반환한다.
@@ -93,6 +96,7 @@ class Variable:
 class Function(object):
     def __call__(self, *inputs):
         inputs = [as_variable(x) for x in inputs]
+        # 순전파 계산 (메인 처리)
         xs = [x.data for x in inputs]
         ys = self.forward(*xs)
         if not isinstance(ys, tuple):  # 튜플이 아닌 경우 추가 지원
@@ -101,6 +105,7 @@ class Function(object):
 
         if Config.enable_backprop:  # 모드 전환
             self.generation = max([x.generation for x in inputs])
+            # 연결을 만듦
             for output in outputs:
                 output.set_creator(self)
             self.inputs = inputs  # inputs은 역전파 계산시에만 사용 추론시에는 단순히 순전파만 사용해서 중간 계산 결과를 곧바로 버리면 메모리 사용량을 크게 줄임
