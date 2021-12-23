@@ -19,28 +19,36 @@ class Variable:
         if self.grad is None:
             self.grad = np.ones_like(self.data)
 
-        # 재귀를 이용한 구현 -> 반복문으로 구현
         funcs = [self.creator]
         while funcs:
-            f = funcs.pop()  # 함수를 가져온다
-            x, y = f.input, f.output  # 함수의 입력과 출력을 가져온다
-            x.grad = f.backward(y.grad)  # backward 메서드를 호출한다.
+            f = funcs.pop()
+            gys = [output.grad for output in f.outputs]  # 1. 출력 변수인 outputs에 담겨있는 미분값들을 리스트에 담는다.
+            gxs = f.backward(*gys)  # 2. f 의 역전파를 호출한다.
+            if not isinstance(gxs, tuple):  # 3. 튜플이 아니라면 튜플로 반환한다.
+                gxs = (gxs,)
 
-            if x.creator is not None:
-                funcs.append(x.creator)  # 하나 앞의 함수를 리스트에 추가한다.
+            for x, gx in zip(f.inputs, gxs):  # 4. 미분값을 변수 grad에 저장한다.
+                x.grad = gx
+
+                if x.creator is not None:
+                    funcs.append(x.creator)
 
 
 class Function:
-    def __call__(self, inputs):
+    def __call__(self, *inputs):
         xs = [x.data for x in inputs]
-        ys = self.forward(xs)
+        ys = self.forward(*xs)
+        if not isinstance(ys, tuple):  # 튜플이 아닌 경우 추가 지원
+            ys = (ys,)
         outputs = [Variable(as_array(y)) for y in ys]
 
         for output in outputs:
             output.set_creator(self)
         self.inputs = inputs
         self.outputs = outputs
-        return outputs
+
+        #  리스트의 원소가 하나라면 첫 번째 원소를 반환한다.
+        return outputs if len(outputs) > 1 else outputs[0]
 
     def forward(self, xs):
         raise NotImplementedError()
@@ -50,10 +58,12 @@ class Function:
 
 
 class Add(Function):
-    def forward(self, xs):
-        x0, x1 = xs
+    def forward(self, x0, x1):
         y = x0 + x1
-        return (y,)
+        return y
+
+    def backward(self, gys):
+        return gys, gys
 
 
 class Square(Function):
@@ -61,7 +71,7 @@ class Square(Function):
         return xs ** 2
 
     def backward(self, gys):
-        x = self.inputs.data
+        x = self.inputs[0].data
         gx = 2 * x * gys
         return gx
 
@@ -96,3 +106,7 @@ def as_array(x):
     if np.isscalar(x):
         return np.array(x)
     return x
+
+
+def add(x0, x1):
+    return Add()(x0, x1)
