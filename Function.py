@@ -1,4 +1,15 @@
 import numpy as np
+import weakref
+
+"""
+참조 카운트 방식의 메모리 관리
+대입 연산자를 사용할 때
+함수에 인수로 전달할 때
+컨테이너 타입 객체(리스트, 튜플, 클래스 등)에 추가할 때
+
+weakref 약한 참조
+다른 객체를 참조하되 참조 카운트는 증가시키지 않는 기능
+"""
 
 
 class Variable:
@@ -11,18 +22,30 @@ class Variable:
         self.data = data
         self.grad = None  # 기울기
         self.creator = None
+        self.generation = 0  # 세대 수를 기록하는 변수
 
     def set_creator(self, func):
         self.creator = func
+        self.generation = func.genertion + 1  # 세대수를 기록한다.(부모 세대 + 1)
 
     def backward(self):
         if self.grad is None:
             self.grad = np.ones_like(self.data)
 
-        funcs = [self.creator]
+        funcs = []
+        seen_set = set()  # funcs 리스트에 같은 함수를 중복 추가하는 이를 막기위해 사용
+
+        def add_func(f_):
+            if f_ not in seen_set:
+                funcs.append(f_)
+                seen_set.add(f_)
+                funcs.sort(key=lambda x_: x_.generation)
+
+        add_func(self.creator)
+
         while funcs:
             f = funcs.pop()
-            gys = [output.grad for output in f.outputs]  # 1. 출력 변수인 outputs에 담겨있는 미분값들을 리스트에 담는다.
+            gys = [output().grad for output in f.outputs]  # 1. 출력 변수인 outputs에 담겨있는 미분값들을 리스트에 담는다.
             gxs = f.backward(*gys)  # 2. f 의 역전파를 호출한다.
             if not isinstance(gxs, tuple):  # 3. 튜플이 아니라면 튜플로 반환한다.
                 gxs = (gxs,)
@@ -34,13 +57,13 @@ class Variable:
                     x.grad = x.grad + gx
 
                 if x.creator is not None:
-                    funcs.append(x.creator)
+                    add_func(x.creator)
 
     def cleargrad(self):
         self.grad = None
 
 
-class Function:
+class Function(object):
     def __call__(self, *inputs):
         xs = [x.data for x in inputs]
         ys = self.forward(*xs)
@@ -48,10 +71,11 @@ class Function:
             ys = (ys,)
         outputs = [Variable(as_array(y)) for y in ys]
 
+        self.generation = max([x.generation for x in inputs])
         for output in outputs:
             output.set_creator(self)
         self.inputs = inputs
-        self.outputs = outputs
+        self.outputs = [weakref.ref(output) for output in outputs]
 
         #  리스트의 원소가 하나라면 첫 번째 원소를 반환한다.
         return outputs if len(outputs) > 1 else outputs[0]
