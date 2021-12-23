@@ -28,10 +28,16 @@ class Variable:
                 gxs = (gxs,)
 
             for x, gx in zip(f.inputs, gxs):  # 4. 미분값을 변수 grad에 저장한다.
-                x.grad = gx
+                if x.grad is None:
+                    x.grad = gx  # 여기가 실수! 수정이 필요
+                else:
+                    x.grad = x.grad + gx
 
                 if x.creator is not None:
                     funcs.append(x.creator)
+
+    def cleargrad(self):
+        self.grad = None
 
 
 class Function:
