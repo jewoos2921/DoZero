@@ -14,6 +14,9 @@ weakref 약한 참조
 
 
 class Variable:
+    # 연산자 우선순위 - Variable 인스턴스의 연산자 우선순위를 ndarray 인스턴스의 연산자 우선순위 보다 높일 수 있음
+    __array_priority__ = 200
+
     def __init__(self, data, name=None):
         # ndarray 만 취급하기
         if data is not None:
@@ -98,6 +101,7 @@ class Variable:
 
 class Function(object):
     def __call__(self, *inputs):
+        inputs = [as_variable(x) for x in inputs]
         xs = [x.data for x in inputs]
         ys = self.forward(*xs)
         if not isinstance(ys, tuple):  # 튜플이 아닌 경우 추가 지원
@@ -173,6 +177,7 @@ def as_array(x):
 
 
 def add(x0, x1):
+    x1 = as_array(x1)
     return Add()(x0, x1)
 
 
@@ -205,9 +210,99 @@ class Mul(Function):
 
 
 def mul(x0, x1):
+    x1 = as_array(x1)
     return Mul()(x0, x1)
+
+
+def as_variable(obj):
+    if isinstance(obj, Variable):
+        return obj
+    return Variable(obj)
+
+
+# 음수 부호
+class Neg(Function):
+    def forward(self, xs):
+        return -xs
+
+    def backward(self, gys):
+        return -gys
+
+
+def neg(x):
+    return Neg()(x)
+
+
+# 뺄셈
+class Sub(Function):
+    def forward(self, x0, x1):
+        y = x0 - x1
+        return y
+
+    def backward(self, gys):
+        return gys, -gys
+
+
+def sub(x0, x1):
+    x1 = as_array(x1)
+    return Sub()(x0, x1)
+
+
+def rsub(x0, x1):
+    x1 = as_array(x1)
+    return Sub()(x1, x0)
+
+
+# 나눗셈
+class Div(Function):
+    def forward(self, x0, x1):
+        y = x0 / x1
+        return y
+
+    def backward(self, gys):
+        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        gx0 = gys / x1
+        gx1 = gys * (-x0 / x1 ** 2)
+        return gx0, gx1
+
+
+def div(x0, x1):
+    x1 = as_array(x1)
+    return Div()(x0, x1)
+
+
+def rdiv(x0, x1):
+    x1 = as_array(x1)
+    return Div()(x1, x0)
+
+
+# 거듭 제곱
+class Pow(Function):
+    def __init__(self, c):
+        self.c = c
+
+    def forward(self, xs):
+        y = xs ** self.c
+        return y
+
+    def backward(self, gys):
+        x = self.inputs[0].data
+        c = self.c
+        gx = c * x ** (c - 1) * gys
+        return gx
+
+
+def pow(x, c):
+    return Pow(c)(x)
 
 
 Variable.__mul__ = mul
 Variable.__add__ = add
+Variable.__radd__ = add
 Variable.__rmul__ = mul
+Variable.__neg__ = neg
+Variable.__sub__ = sub
+Variable.__rsub__ = rsub
+Variable.__div__ = div
+Variable.__rdiv__ = rdiv
+Variable.__pow__ = pow
