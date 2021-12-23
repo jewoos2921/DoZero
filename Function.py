@@ -14,13 +14,14 @@ weakref 약한 참조
 
 
 class Variable:
-    def __init__(self, data):
+    def __init__(self, data, name=None):
         # ndarray 만 취급하기
         if data is not None:
             if not isinstance(data, np.ndarray):
                 raise TypeError("{}은 (는) 지원하지 않습니다. ".format(type(data)))
 
         self.data = data
+        self.name = name  # 변수 이름 지정
         self.grad = None  # 기울기
         self.creator = None
         self.generation = 0  # 세대 수를 기록하는 변수
@@ -65,6 +66,31 @@ class Variable:
 
     def cleargrad(self):
         self.grad = None
+
+    @property
+    def shape(self):
+        return self.data.shape
+
+    @property
+    def size(self):
+        return self.data.size
+
+    @property
+    def ndim(self):
+        return self.data.ndim
+
+    @property
+    def dtype(self):
+        return self.data.dtype
+
+    def __len__(self):
+        return len(self.data)
+
+    def __repr__(self):
+        if self.data is None:
+            return "variable(None)"
+        p = str(self.data).replace("\n", "\n" + " " * 9)
+        return "variable(" + p + ")"
 
 
 class Function(object):
