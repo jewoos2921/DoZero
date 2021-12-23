@@ -92,6 +92,9 @@ class Variable:
         p = str(self.data).replace("\n", "\n" + " " * 9)
         return "variable(" + p + ")"
 
+    # def __mul__(self, other):
+    #     return mul(self, other)
+
 
 class Function(object):
     def __call__(self, *inputs):
@@ -191,14 +194,20 @@ def no_grad():
     return using_config("enable_backprop", False)
 
 
-@contextlib.contextmanager
-def config_test():
-    print("start")  # 전처리
-    try:
-        yield
-    finally:
-        print("done")  # 후처리
+class Mul(Function):
+    def forward(self, x0, x1):
+        y = x0 * x1
+        return y
 
-#
-# with config_test():
-#     print("process...")
+    def backward(self, gys):
+        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        return gys * x1, gys * x0
+
+
+def mul(x0, x1):
+    return Mul()(x0, x1)
+
+
+Variable.__mul__ = mul
+Variable.__add__ = add
+Variable.__rmul__ = mul
