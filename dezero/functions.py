@@ -1,5 +1,5 @@
 import numpy as np
-from dezero.core import Function
+from dezero.core import Function, as_variable
 
 
 class Sin(Function):
@@ -45,3 +45,36 @@ class Tanh(Function):
 
 def tanh(x):
     return Tanh()(x)
+
+
+class Reshape(Function):
+    def __init__(self, shape):
+        self.shape = shape
+
+    def forward(self, xs):
+        self.x_shape = xs.shape
+        y = xs.reshape(self.shape)
+        return y
+
+    def backward(self, gys):
+        return reshape(gys, self.x_shape)
+
+
+def reshape(x, shape):
+    if x.shape == shape:
+        return as_variable(x)
+    return Reshape(shape)(x)
+
+
+class Transpose(Function):
+    def forward(self, xs):
+        y = np.transpose(xs)
+        return y
+
+    def backward(self, gys):
+        gx = transpose(gys)
+        return gx
+
+
+def transpose(x):
+    return Transpose()(x)
