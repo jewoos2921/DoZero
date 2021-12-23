@@ -27,7 +27,7 @@ class Variable:
 
     def set_creator(self, func):
         self.creator = func
-        self.generation = func.genertion + 1  # 세대수를 기록한다.(부모 세대 + 1)
+        self.generation = func.generation + 1  # 세대수를 기록한다.(부모 세대 + 1)
 
     # create_graph=False인 이유는 실무에서 역전파가 1회만 수행되는 경우가 압도적으로 맣기 때문에
     # 2차 이상의 미분이 필요시 True로 변경
@@ -183,7 +183,7 @@ class Pow(Function):
         return y
 
     def backward(self, gys):
-        x = self.inputs[0].data
+        x, = self.inputs
         c = self.c
         gx = c * x ** (c - 1) * gys
         return gx

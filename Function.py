@@ -31,7 +31,7 @@ class Variable:
 
     def set_creator(self, func):
         self.creator = func
-        self.generation = func.genertion + 1  # 세대수를 기록한다.(부모 세대 + 1)
+        self.generation = func.generation + 1  # 세대수를 기록한다.(부모 세대 + 1)
 
     def backward(self, retain_grad=False):
         if self.grad is None:
@@ -334,7 +334,7 @@ class Sin(Function):
         return y
 
     def backward(self, gys):
-        x = self.inputs[0].data
+        x, = self.inputs
         gx = gys * np.cos(x)
         return gx
 
@@ -372,4 +372,3 @@ def f(x):
 
 def gx2(x):
     return 12 * x ** 2 - 4
-

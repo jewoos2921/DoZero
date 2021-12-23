@@ -27,7 +27,7 @@ class Variable:
 
     def set_creator(self, func):
         self.creator = func
-        self.generation = func.genertion + 1  # 세대수를 기록한다.(부모 세대 + 1)
+        self.generation = func.generation + 1  # 세대수를 기록한다.(부모 세대 + 1)
 
     def backward(self, retain_grad=False):
         if self.grad is None:
