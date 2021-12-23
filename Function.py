@@ -1,5 +1,6 @@
 import numpy as np
 import weakref
+import contextlib
 
 """
 참조 카운트 방식의 메모리 관리
@@ -28,7 +29,7 @@ class Variable:
         self.creator = func
         self.generation = func.genertion + 1  # 세대수를 기록한다.(부모 세대 + 1)
 
-    def backward(self):
+    def backward(self, retain_grad=False):
         if self.grad is None:
             self.grad = np.ones_like(self.data)
 
@@ -58,6 +59,9 @@ class Variable:
 
                 if x.creator is not None:
                     add_func(x.creator)
+            if not retain_grad:
+                for y in f.outputs:
+                    y().grad = None  # y는 약한 참조 실행시 참조 카운터가 0이 되어 미분값 데이터가 메모리에서 삭제
 
     def cleargrad(self):
         self.grad = None
@@ -71,11 +75,12 @@ class Function(object):
             ys = (ys,)
         outputs = [Variable(as_array(y)) for y in ys]
 
-        self.generation = max([x.generation for x in inputs])
-        for output in outputs:
-            output.set_creator(self)
-        self.inputs = inputs
-        self.outputs = [weakref.ref(output) for output in outputs]
+        if Config.enable_backprop:  # 모드 전환
+            self.generation = max([x.generation for x in inputs])
+            for output in outputs:
+                output.set_creator(self)
+            self.inputs = inputs  # inputs은 역전파 계산시에만 사용 추론시에는 단순히 순전파만 사용해서 중간 계산 결과를 곧바로 버리면 메모리 사용량을 크게 줄임
+            self.outputs = [weakref.ref(output) for output in outputs]
 
         #  리스트의 원소가 하나라면 첫 번째 원소를 반환한다.
         return outputs if len(outputs) > 1 else outputs[0]
@@ -140,3 +145,34 @@ def as_array(x):
 
 def add(x0, x1):
     return Add()(x0, x1)
+
+
+class Config:
+    enable_backprop = True
+
+
+@contextlib.contextmanager
+def using_config(name, value):
+    old_value = getattr(Config, name)
+    setattr(Config, name, value)
+    try:
+        yield
+    finally:
+        setattr(Config, name, old_value)
+
+
+def no_grad():
+    return using_config("enable_backprop", False)
+
+
+@contextlib.contextmanager
+def config_test():
+    print("start")  # 전처리
+    try:
+        yield
+    finally:
+        print("done")  # 후처리
+
+#
+# with config_test():
+#     print("process...")
