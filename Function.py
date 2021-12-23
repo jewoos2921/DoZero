@@ -362,3 +362,14 @@ def my_sin(x, threshold=0.0001):
 def rosenbrock(x0, x1):
     y = 100 * (x1 - x0 ** 2) ** 2 + (1 - x0) ** 2
     return y
+
+
+# 뉴턴 방벙
+def f(x):
+    y = x ** 4 - 2 * x ** 2
+    return y
+
+
+def gx2(x):
+    return 12 * x ** 2 - 4
+
