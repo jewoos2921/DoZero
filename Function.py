@@ -31,40 +31,48 @@ class Variable:
 
 
 class Function:
-    def __call__(self, input):
-        x = input.data  # 데이터를 꺼낸다.
-        # y = x ** 2  # 실제 계산
-        y = self.forward(x)
-        output = Variable(as_array(y))  # Variable 형태로 되돌린다.
-        output.set_creator(self)  # 출력 변수에 창조자를 설정한다.
-        self.input = input  # 입력 변수를 기억(보관)한다.
-        self.output = output  # 출력도 저장한다.
-        return output
+    def __call__(self, inputs):
+        xs = [x.data for x in inputs]
+        ys = self.forward(xs)
+        outputs = [Variable(as_array(y)) for y in ys]
 
-    def forward(self, x):
+        for output in outputs:
+            output.set_creator(self)
+        self.inputs = inputs
+        self.outputs = outputs
+        return outputs
+
+    def forward(self, xs):
         raise NotImplementedError()
 
-    def backward(self, gy):
+    def backward(self, gys):
         raise NotImplementedError()
+
+
+class Add(Function):
+    def forward(self, xs):
+        x0, x1 = xs
+        y = x0 + x1
+        return (y,)
 
 
 class Square(Function):
-    def forward(self, x):
-        return x ** 2
+    def forward(self, xs):
+        return xs ** 2
 
-    def backward(self, gy):
-        x = self.input.data
-        gx = 2 * x * gy
+    def backward(self, gys):
+        x = self.inputs.data
+        gx = 2 * x * gys
         return gx
 
 
 class Exp(Function):
-    def forward(self, x):
-        return np.exp(x)
+    def forward(self, xs):
+        return np.exp(xs)
 
-    def backward(self, gy):
-        x = self.input.data
-        gx = np.exp(x) * gy
+    def backward(self, gys):
+        x = self.inputs.data
+        gx = np.exp(x) * gys
         return gx
 
 
