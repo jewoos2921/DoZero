@@ -326,3 +326,34 @@ def goldstein(x, y):
     z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x ** 2 - 14 * y + 6 * x * y + 3 * y ** 2)) * \
         (30 + (2 * x - 3 * y) ** 2 * (18 - 32 * x + 12 * x ** 2 + 48 * y - 36 * x * y + 27 * y ** 2))
     return z
+
+
+class Sin(Function):
+    def forward(self, xs):
+        y = np.sin(xs)
+        return y
+
+    def backward(self, gys):
+        x = self.inputs[0].data
+        gx = gys * np.cos(x)
+        return gx
+
+
+def sin(x):
+    return Sin()(x)
+
+
+import math
+
+
+# 테일러 급수 구현
+# 임계값을 작게 할수록 이론상 근사 정밀도가 좋아진다
+def my_sin(x, threshold=0.0001):
+    y = 0
+    for i in range(100000):
+        c = (-1) ** i / math.factorial(2 * i + 1)
+        t = c * x ** (2 * i + 1)
+        y = y + t
+        if abs(t.data) < threshold:
+            break
+    return y
