@@ -3,6 +3,11 @@ import numpy as np
 
 class Variable:
     def __init__(self, data):
+        # ndarray 만 취급하기
+        if data is not None:
+            if not isinstance(data, np.ndarray):
+                raise TypeError("{}은 (는) 지원하지 않습니다. ".format(type(data)))
+
         self.data = data
         self.grad = None  # 기울기
         self.creator = None
@@ -11,11 +16,18 @@ class Variable:
         self.creator = func
 
     def backward(self):
-        f = self.creator  # 1. 함수를 가져온다
-        if f is not None:
-            x = f.input  # 2. 함수의 입력을 가져온다.
-            x.grad = f.backward(self.grad)  # 3. 함수의 backward 메서드를 호출한다.
-            x.backward()  # 하나 앞 변수의 backward 메서드를 호출한다 (재귀).
+        if self.grad is None:
+            self.grad = np.ones_like(self.data)
+
+        # 재귀를 이용한 구현 -> 반복문으로 구현
+        funcs = [self.creator]
+        while funcs:
+            f = funcs.pop()  # 함수를 가져온다
+            x, y = f.input, f.output  # 함수의 입력과 출력을 가져온다
+            x.grad = f.backward(y.grad)  # backward 메서드를 호출한다.
+
+            if x.creator is not None:
+                funcs.append(x.creator)  # 하나 앞의 함수를 리스트에 추가한다.
 
 
 class Function:
@@ -23,7 +35,7 @@ class Function:
         x = input.data  # 데이터를 꺼낸다.
         # y = x ** 2  # 실제 계산
         y = self.forward(x)
-        output = Variable(y)  # Variable 형태로 되돌린다.
+        output = Variable(as_array(y))  # Variable 형태로 되돌린다.
         output.set_creator(self)  # 출력 변수에 창조자를 설정한다.
         self.input = input  # 입력 변수를 기억(보관)한다.
         self.output = output  # 출력도 저장한다.
@@ -62,3 +74,17 @@ def numerical_diff(f, x, eps=1e-4):
     y0 = f(x0)
     y1 = f(x1)
     return (y1.data - y0.data) / (2 * eps)
+
+
+def square(x):
+    return Square()(x)
+
+
+def exp(x):
+    return Exp()(x)
+
+
+def as_array(x):
+    if np.isscalar(x):
+        return np.array(x)
+    return x
