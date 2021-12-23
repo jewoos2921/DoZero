@@ -81,6 +81,9 @@ class Variable:
     def transpose(self):
         return dezero.functions.transpose(self)
 
+    def sum(self, axis=None, keepdims=False):
+        return dezero.functions.sum(self, axis, keepdims)
+
     @property
     def T(self):
         return dezero.functions.transpose(self)
@@ -140,23 +143,36 @@ class Function(object):
 
 
 class Add(Function):
+    # 순전파 때 브로드캐스트가 일어나면 입력되는 x0, x1의 형상이 다를 것이다.
+    # 두형상이 다를때 브로드캐스트용 역전파를 계산하는 것
+    # 기울기 gx0는 x0의 형상이 되도록 합을 구하고 ,gx1도 똑같이 사용
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 + x1
         return y
 
     def backward(self, gys):
-        return gys, gys
+        gx0, gx1 = gys, gys
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+
+        return gx0, gx1
 
 
 class Mul(Function):
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 * x1
         return y
 
     def backward(self, gys):
         x0, x1 = self.inputs
-
-        return gys * x1, gys * x0
+        gx0, gx1 = gys, gys
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+        return gx1 * x1, gx0 * x0
 
 
 class Neg(Function):
@@ -169,22 +185,33 @@ class Neg(Function):
 
 class Sub(Function):
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 - x1
         return y
 
     def backward(self, gys):
-        return gys, -gys
+        gx0, gx1 = gys, gys
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+
+        return gx0, -gx1
 
 
 class Div(Function):
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 / x1
         return y
 
     def backward(self, gys):
         x0, x1 = self.inputs
-        gx0 = gys / x1
-        gx1 = gys * (-x0 / x1 ** 2)
+        gx0, gx1 = gys, gys
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+        gx0 = gx0 / x1
+        gx1 = gx1 * (-x0 / x1 ** 2)
         return gx0, gx1
 
 

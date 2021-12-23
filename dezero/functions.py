@@ -1,4 +1,6 @@
 import numpy as np
+
+from dezero import utils
 from dezero.core import Function, as_variable
 
 
@@ -78,3 +80,67 @@ class Transpose(Function):
 
 def transpose(x):
     return Transpose()(x)
+
+
+class Sum(Function):
+    def __init__(self, axis, keepdims):
+        self.axis = axis
+        # keepdims은 입력과 풀력의 차원수를 똑같게 유지할지 정함
+        # False일시 y의 형상은 (), 즉 스칼라
+        # True일시 축의 수가 유지
+        self.keepdims = keepdims
+
+    def forward(self, xs):
+        self.x_shape = xs.shape
+        y = xs.sum(axis=self.axis, keepdims=self.keepdims)
+        return y
+
+    def backward(self, gys):
+        # reshape_sum_backward 는 gy의 형상을 미세하게 조정
+        gy = utils.reshape_sum_backward(gy, self.x_shape, self.axis, self.keepdims)
+        gx = broadcast_to(gys, self.x_shape)
+        return gx
+
+
+def sum(x, axis=None, keepdims=False):
+    return Sum(axis, keepdims)(x)
+
+
+class BroadcastTo(Function):
+    def __init__(self, shape):
+        self.shape = shape
+
+    def forward(self, xs):
+        self.x_shape = xs.shape
+        y = np.broadcast_to(xs, self.x_shape)
+        return y
+
+    def backward(self, gys):
+        gx = sum_to(gy, self.x_shape)
+        return gx
+
+
+def broadcast_to(x, shape):
+    if x.shape == shape:
+        return as_variable(x)
+    return BroadcastTo(shape)(x)
+
+
+class SumTo(Function):
+    def __init__(self, shape):
+        self.shape = shape
+
+    def forward(self, xs):
+        self.x_shape = xs.shape
+        y = utils.sum_to(xs, self.shape)
+        return y
+
+    def backward(self, gys):
+        gx = broadcast_to(gys, self.x_shape)
+        return gx
+
+
+def sum_to(x, shape):
+    if x.shape == shape:
+        return as_variable(x)
+    return SumTo(shape)(x)
