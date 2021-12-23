@@ -30,3 +30,18 @@ class Cos(Function):
 
 def cos(x):
     return Cos()(x)
+
+
+class Tanh(Function):
+    def forward(self, xs):
+        y = np.tanh(xs)
+        return y
+
+    def backward(self, gys):
+        y = self.outputs[0]()
+        gx = gys * (1 - y * y)
+        return gx
+
+
+def tanh(x):
+    return Tanh()(x)
